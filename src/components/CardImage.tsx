@@ -1,5 +1,4 @@
 import React from 'react';
-import { getRarityClass } from '../utils/rarity-helper';
 
 interface CardImageProps {
   imageUrl: string;
@@ -8,14 +7,11 @@ interface CardImageProps {
   className?: string;
 }
 
-const CardImage: React.FC<CardImageProps> = ({ imageUrl, rarity, alt, className = '' }) => {
-  const rarityClass = getRarityClass(rarity);
-  // Certain rarities need to style the image directly (e.g., to desaturate it)
-  const imageSpecificClass = rarity === 'Ghost Rare' ? 'rarity-ghost-rare-img' : '';
-
+const CardImage: React.FC<CardImageProps> = ({ imageUrl, alt, className = '' }) => {
+  // Os efeitos de raridade foram removidos. O div wrapper é mantido para aplicar classes de layout.
   return (
-    <div className={`card-image-wrapper ${rarityClass} ${className}`}>
-      <img src={imageUrl} alt={alt} className={`relative z-0 w-full h-full object-cover ${imageSpecificClass}`} />
+    <div className={className}>
+      <img src={imageUrl} alt={alt} className="w-full h-full object-cover" />
     </div>
   );
 };
