@@ -1,34 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Yu-Gi-Oh! Card Collector</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;500;700&display=swap');
-      body {
-        font-family: 'Roboto', sans-serif;
-      }
-      h1, h2, h3, .font-orbitron {
-        font-family: 'Orbitron', sans-serif;
-      }
-    </style>
-    
+<head>
+  <meta charset="UTF-8" />
+  <!-- Favicon real, coloque favicon.ico dentro da pasta public -->
+  <link rel="icon" href="/favicon.ico" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yu-Gi-Oh! Card Collector</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Roboto', sans-serif;
+    }
+    h1, h2, h3, .font-orbitron {
+      font-family: 'Orbitron', sans-serif;
+    }
+  </style>
+
+  <!-- Importmap para libs externas -->
   <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0"
+  {
+    "imports": {
+      "react": "https://aistudiocdn.com/react@^19.2.0",
+      "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+      "react/": "https://aistudiocdn.com/react@^19.2.0/",
+      "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0"
+    }
   }
-}
-</script>
+  </script>
+
+  <!-- CSS adicional (opcional) -->
+  <!-- Se raridade-effects.css for usado, coloque na pasta public -->
+  <!-- <link rel="stylesheet" href="/rarity-effects.css"> -->
 </head>
-  <body class="bg-gray-900 text-white">
-    <div id="root"></div>
-    <script type="module" src="/src/index.tsx"></script>
-  </body>
+<body class="bg-gray-900 text-white">
+  <div id="root"></div>
+
+  <!-- Script do Vite build será injetado automaticamente -->
+  <!-- NÃO referenciar /src/index.tsx diretamente no HTML -->
+</body>
 </html>
