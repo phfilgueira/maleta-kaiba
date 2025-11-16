@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+// FIX: Changed Firebase Firestore import to use a namespace import to resolve potential module resolution errors.
+import * as firestore from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 // Firebase configuration from user
@@ -14,5 +15,5 @@ const firebaseConfig = {
 
 // Initialize Firebase and export the services
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+export const db = firestore.getFirestore(app);
 export const auth = getAuth(app);

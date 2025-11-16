@@ -1,43 +1,36 @@
-import {
-    collection as firestoreCollection,
-    getDocs,
-    doc,
-    setDoc,
-    deleteDoc,
-    writeBatch,
-    getDoc,
-} from "firebase/firestore";
+// FIX: Changed Firebase Firestore imports to use a namespace import to resolve potential module resolution errors.
+import * as firestore from "firebase/firestore";
 import { Card, Deck } from "../types";
 import { db } from './firebase';
 
 // --- Path Builders ---
-const cardsCollectionRef = (userId: string) => firestoreCollection(db, "users", userId, "cards");
-const cardDocRef = (userId: string, cardId: string) => doc(db, "users", userId, "cards", cardId);
-const decksCollectionRef = (userId: string) => firestoreCollection(db, "users", userId, "decks");
-const deckDocRef = (userId: string, deckId: string) => doc(db, "users", userId, "decks", deckId);
+const cardsCollectionRef = (userId: string) => firestore.collection(db, "users", userId, "cards");
+const cardDocRef = (userId: string, cardId: string) => firestore.doc(db, "users", userId, "cards", cardId);
+const decksCollectionRef = (userId: string) => firestore.collection(db, "users", userId, "decks");
+const deckDocRef = (userId: string, deckId: string) => firestore.doc(db, "users", userId, "decks", deckId);
 
 
 // --- Card Functions ---
 
 export const getCollectionFromDB = async (userId: string): Promise<Card[]> => {
-    const querySnapshot = await getDocs(cardsCollectionRef(userId));
+    const querySnapshot = await firestore.getDocs(cardsCollectionRef(userId));
     return querySnapshot.docs.map(doc => doc.data() as Card);
 };
 
 export const upsertCardInDB = async (userId: string, card: Card): Promise<void> => {
-    await setDoc(cardDocRef(userId, card.id), card);
+    await firestore.setDoc(cardDocRef(userId, card.id), card);
 };
 
 export const deleteCardFromDB = async (userId: string, cardId: string): Promise<void> => {
-    await deleteDoc(cardDocRef(userId, cardId));
+    await firestore.deleteDoc(cardDocRef(userId, cardId));
 };
 
 export const updateCardArtworkInDB = async (userId: string, oldCard: Card, newCard: Card): Promise<void> => {
-    const batch = writeBatch(db);
+    const batch = firestore.writeBatch(db);
     
     const oldCardRef = cardDocRef(userId, oldCard.id);
     const newCardRef = cardDocRef(userId, newCard.id);
-    const newCardDoc = await getDoc(newCardRef);
+    const newCardDoc = await firestore.getDoc(newCardRef);
 
     if (newCardDoc.exists()) {
         const existingCard = newCardDoc.data() as Card;
@@ -50,7 +43,7 @@ export const updateCardArtworkInDB = async (userId: string, oldCard: Card, newCa
     }
     
     // Also update decks that use the old card id
-    const decksSnapshot = await getDocs(decksCollectionRef(userId));
+    const decksSnapshot = await firestore.getDocs(decksCollectionRef(userId));
     decksSnapshot.docs.forEach(deckDoc => {
         const deck = deckDoc.data() as Deck;
         let deckWasModified = false;
@@ -84,14 +77,14 @@ export const updateCardArtworkInDB = async (userId: string, oldCard: Card, newCa
 // --- Deck Functions ---
 
 export const getDecksFromDB = async (userId: string): Promise<Deck[]> => {
-    const querySnapshot = await getDocs(decksCollectionRef(userId));
+    const querySnapshot = await firestore.getDocs(decksCollectionRef(userId));
     return querySnapshot.docs.map(doc => doc.data() as Deck);
 };
 
 export const saveDeckToDB = async (userId: string, deck: Deck): Promise<void> => {
-    await setDoc(deckDocRef(userId, deck.id), deck);
+    await firestore.setDoc(deckDocRef(userId, deck.id), deck);
 };
 
 export const deleteDeckFromDB = async (userId: string, deckId: string): Promise<void> => {
-    await deleteDoc(deckDocRef(userId, deckId));
+    await firestore.deleteDoc(deckDocRef(userId, deckId));
 };
