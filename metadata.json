@@ -1,7 +1,0 @@
-{
-  "name": "Yu-Gi-Oh! Card Collector",
-  "description": "An application to manage your Yu-Gi-Oh! card collection. Add new cards simply by scanning them with your phone's camera, and let AI identify them for you.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}
