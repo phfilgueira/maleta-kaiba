@@ -11,7 +11,7 @@ import SortControl from './components/SortControl';
 import ScanErrorDialog from './components/ScanErrorDialog';
 import SearchAndFilter from './components/SearchAndFilter';
 import ViewModeControl from './components/ViewModeControl';
-import { CameraIcon, BookOpenIcon, DownloadIcon } from './components/icons';
+import { CameraIcon, BookOpenIcon } from './components/icons';
 import { identifyCard } from './services/geminiService';
 import { searchCard, getArtworksForCard } from './services/ygoProDeckService';
 import { RARITIES } from './constants';
@@ -35,72 +35,6 @@ type ActiveFilters = { [key: string]: string | number | undefined };
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-// --- CSV Export Logic ---
-function formatCsvCell(data: string | number | null | undefined): string {
-    if (data === null || data === undefined) {
-        return '';
-    }
-    const stringData = String(data);
-    if (stringData.includes(',') || stringData.includes('"') || stringData.includes('\n')) {
-        const escapedData = stringData.replace(/"/g, '""');
-        return `"${escapedData}"`;
-    }
-    return stringData;
-}
-
-function exportCollectionToCSV(collection: Card[]): void {
-    if (collection.length === 0) {
-        alert("Your collection is empty. There is nothing to export.");
-        return;
-    }
-
-    const headers = [
-        'ID', 'Name', 'Name (PT)', 'Quantity', 'Rarity', 'Collection Code', 'Card Code',
-        'Type', 'Sub-Type', 'Race/Spell/Trap Type', 'Attribute', 'Level/Rank', 'ATK', 'DEF',
-        'Description', 'Description (PT)', 'Image URL', 'Date Added'
-    ];
-
-    const rows = collection.map(card => [
-        card.id,
-        card.name,
-        card.name_pt,
-        card.quantity,
-        card.rarity,
-        card.collectionCode,
-        card.cardCode,
-        card.type,
-        card.subType,
-        card.race,
-        card.attribute,
-        card.level,
-        card.atk,
-        card.def,
-        card.description,
-        card.description_pt,
-        card.imageUrl,
-        new Date(card.dateAdded).toLocaleString()
-    ].map(formatCsvCell));
-
-    const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `yugioh-collection-${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }
-}
-
-
 // Simple navigator component
 const AppNavigator: React.FC<{
   currentView: 'collection' | 'decks';
@@ -115,7 +49,7 @@ const AppNavigator: React.FC<{
   };
 
   return (
-    <nav className="flex bg-gray-800/80 backdrop-blur-sm sticky top-[80px] z-20">
+    <nav className="flex bg-gray-800/80 backdrop-blur-sm sticky top-[68px] z-20">
       <button onClick={() => onNavigate('collection')} className={getButtonClass('collection')}>
         <CameraIcon className="w-5 h-5" /> My Collection
       </button>
@@ -128,10 +62,37 @@ const AppNavigator: React.FC<{
 
 
 const App: React.FC = () => {
-  const [collection, setCollection] = useState<Card[]>([]);
-  const [decks, setDecks] = useState<Deck[]>([]);
-  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [collection, setCollection] = useState<Card[]>(() => {
+    try {
+      const savedCollection = localStorage.getItem('yugioh-collection');
+      if (savedCollection) {
+        const parsed = JSON.parse(savedCollection) as Card[];
+        return parsed.map((card, index) => ({
+            ...card,
+            dateAdded: card.dateAdded || Date.now() - (parsed.length - index) * 1000,
+            race: card.race || null,
+            subType: card.subType || null,
+            name_pt: card.name_pt || null,
+            description_pt: card.description_pt || null,
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error("Failed to parse collection from localStorage", error);
+      return [];
+    }
+  });
   
+  const [decks, setDecks] = useState<Deck[]>(() => {
+    try {
+        const savedDecks = localStorage.getItem('yugioh-decks');
+        return savedDecks ? JSON.parse(savedDecks) : [];
+    } catch (error) {
+        console.error("Failed to parse decks from localStorage", error);
+        return [];
+    }
+  });
+
   const [view, setView] = useState<AppView>('collection');
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
   const [resultData, setResultData] = useState<ResultData>({
@@ -153,37 +114,15 @@ const App: React.FC = () => {
     return savedColumns ? parseInt(savedColumns, 10) : 2;
   });
 
-  useEffect(() => {
-    setIsDataLoading(true);
-    try {
-        const savedCollection = localStorage.getItem('yugioh-collection');
-        const savedDecks = localStorage.getItem('yugioh-decks');
-        if (savedCollection) {
-            setCollection(JSON.parse(savedCollection));
-        }
-        if (savedDecks) {
-            setDecks(JSON.parse(savedDecks));
-        }
-    } catch (error) {
-        console.error("Failed to load data from localStorage:", error);
-        localStorage.removeItem('yugioh-collection');
-        localStorage.removeItem('yugioh-decks');
-    }
-    setIsDataLoading(false);
-  }, []);
 
   useEffect(() => {
-    if (!isDataLoading) {
-        localStorage.setItem('yugioh-collection', JSON.stringify(collection));
-    }
-  }, [collection, isDataLoading]);
+    localStorage.setItem('yugioh-collection', JSON.stringify(collection));
+  }, [collection]);
   
   useEffect(() => {
-    if (!isDataLoading) {
-        localStorage.setItem('yugioh-decks', JSON.stringify(decks));
-    }
-  }, [decks, isDataLoading]);
-
+    localStorage.setItem('yugioh-decks', JSON.stringify(decks));
+  }, [decks]);
+  
   useEffect(() => {
     localStorage.setItem('yugioh-grid-columns', String(gridColumns));
   }, [gridColumns]);
@@ -272,33 +211,32 @@ const App: React.FC = () => {
     setResultData(prev => ({ ...prev, selectedArtwork: artwork }));
   };
 
-  const addCardToCollection = async (details: { rarity: string; quantity: number; collectionCode: string }) => {
+  const addCardToCollection = (details: { rarity: string; quantity: number; collectionCode: string }) => {
     if (!resultData.card || !resultData.selectedArtwork) return;
     saveArtworkPreference(details.collectionCode, resultData.selectedArtwork.id);
     const newCardId = `${details.collectionCode}-${details.rarity}-${resultData.selectedArtwork.id}`;
 
-    const existingCard = collection.find(c => c.id === newCardId);
-    let cardToSave: Card;
+    setCollection(prev => {
+        const existingCardIndex = prev.findIndex(c => c.id === newCardId);
 
-    if (existingCard) {
-        cardToSave = { ...existingCard, quantity: existingCard.quantity + details.quantity };
-    } else {
-        cardToSave = {
-          ...resultData.card,
-          id: newCardId,
-          collectionCode: details.collectionCode,
-          rarity: details.rarity,
-          quantity: details.quantity,
-          imageUrl: resultData.selectedArtwork.imageUrl,
-          dateAdded: Date.now(),
-        };
-    }
-    
-    if (existingCard) {
-        setCollection(prev => prev.map(c => c.id === newCardId ? cardToSave : c));
-    } else {
-        setCollection(prev => [...prev, cardToSave]);
-    }
+        if (existingCardIndex > -1) {
+            const updatedCollection = [...prev];
+            const existingCard = updatedCollection[existingCardIndex];
+            existingCard.quantity += details.quantity;
+            return updatedCollection;
+        } else {
+            const newCard: Card = {
+              ...resultData.card,
+              id: newCardId,
+              collectionCode: details.collectionCode,
+              rarity: details.rarity,
+              quantity: details.quantity,
+              imageUrl: resultData.selectedArtwork.imageUrl,
+              dateAdded: Date.now(),
+            };
+            return [...prev, newCard];
+        }
+    });
     resetScan();
   };
 
@@ -338,7 +276,7 @@ const App: React.FC = () => {
     setModalArtworks([]);
   };
 
-  const handleUpdateQuantity = async (cardId: string, newQuantity: number): Promise<boolean> => {
+  const handleUpdateQuantity = (cardId: string, newQuantity: number): boolean => {
     const finalQuantity = Math.max(0, newQuantity);
     
     if (finalQuantity < (cardUsageMap[cardId] || 0)) {
@@ -362,43 +300,37 @@ const App: React.FC = () => {
     return true;
   };
 
-  const handleUpdateArtwork = async (cardToUpdate: Card, newArtwork: ArtworkInfo) => {
+  const handleUpdateArtwork = (cardToUpdate: Card, newArtwork: ArtworkInfo) => {
     const newCardId = `${cardToUpdate.collectionCode}-${cardToUpdate.rarity}-${newArtwork.id}`;
 
     if (cardToUpdate.id === newCardId) return;
     saveArtworkPreference(cardToUpdate.collectionCode, newArtwork.id);
 
-    const newCard: Card = { ...cardToUpdate, id: newCardId, imageUrl: newArtwork.imageUrl };
+    setCollection(prev => {
+        const collectionWithoutOldCard = prev.filter(c => c.id !== cardToUpdate.id);
+        const existingTargetCardIndex = collectionWithoutOldCard.findIndex(c => c.id === newCardId);
 
-    const collectionWithoutOldCard = collection.filter(c => c.id !== cardToUpdate.id);
-    const existingTargetCardIndex = collectionWithoutOldCard.findIndex(c => c.id === newCardId);
+        let finalCollection: Card[];
+        let updatedCardForModal: Card;
 
-    let finalCollection: Card[];
-    let updatedCardForModal: Card;
-
-    if (existingTargetCardIndex > -1) {
-        const newCollection = [...collectionWithoutOldCard];
-        const targetCard = newCollection[existingTargetCardIndex];
-        targetCard.quantity += cardToUpdate.quantity;
-        updatedCardForModal = targetCard;
-        finalCollection = newCollection;
-    } else {
-        updatedCardForModal = newCard;
-        finalCollection = [...collectionWithoutOldCard, newCard];
-    }
-    setCollection(finalCollection);
-    setSelectedCard(updatedCardForModal);
-    
-    // Also update local decks state to reflect the ID change
-    setDecks(prevDecks => prevDecks.map(deck => {
-        const updateList = (list: string[]) => list.map(id => id === cardToUpdate.id ? newCard.id : id);
-        return {
-            ...deck,
-            mainDeck: updateList(deck.mainDeck),
-            extraDeck: updateList(deck.extraDeck),
-            sideDeck: updateList(deck.sideDeck),
-        };
-    }));
+        if (existingTargetCardIndex > -1) {
+            const newCollection = [...collectionWithoutOldCard];
+            const targetCard = newCollection[existingTargetCardIndex];
+            targetCard.quantity += cardToUpdate.quantity;
+            updatedCardForModal = targetCard;
+            finalCollection = newCollection;
+        } else {
+            const newCard: Card = {
+                ...cardToUpdate,
+                id: newCardId,
+                imageUrl: newArtwork.imageUrl,
+            };
+            updatedCardForModal = newCard;
+            finalCollection = [...collectionWithoutOldCard, newCard];
+        }
+        setSelectedCard(updatedCardForModal);
+        return finalCollection;
+    });
   };
 
   const handleFilterChange = (filterType: keyof ActiveFilters, value: string) => {
@@ -439,11 +371,11 @@ const App: React.FC = () => {
     setView('deck-editor');
   };
 
-  const handleDeleteDeck = async (deckId: string) => {
+  const handleDeleteDeck = (deckId: string) => {
     setDecks(prev => prev.filter(d => d.id !== deckId));
   };
   
-  const handleSaveDeck = async (deckToSave: Deck) => {
+  const handleSaveDeck = (deckToSave: Deck) => {
     deckToSave.dateUpdated = Date.now();
     setDecks(prev => {
         const existingIndex = prev.findIndex(d => d.id === deckToSave.id);
@@ -495,29 +427,17 @@ const App: React.FC = () => {
     });
   }, [filteredCollection, sortOrder]);
 
-  if (isDataLoading) {
-    return (
-        <div className="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center z-50">
-            <div className="w-24 h-24 border-4 border-t-transparent border-purple-500 rounded-full animate-spin"></div>
-            <p className="mt-4 text-lg text-purple-300 font-orbitron tracking-widest animate-pulse">
-                LOADING...
-            </p>
-        </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <header className="bg-gray-800/50 backdrop-blur-sm sticky top-0 z-20 shadow-lg shadow-purple-900/20">
-        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-purple-300 font-orbitron tracking-wider">
-              Yu-Gi-Oh! Card Collector
-            </h1>
-            <p className="text-gray-400 text-sm mt-1 font-orbitron">
-                  Total: <span className="text-purple-300 font-bold">{totalCardCount}</span> | Unique: <span className="text-purple-300 font-bold">{uniqueCardNameCount}</span> | Prints: <span className="text-purple-300 font-bold">{collection.length}</span>
-              </p>
-          </div>
+        <div className="container mx-auto px-4 py-3">
+          <h1 className="text-2xl font-bold text-center text-purple-300 font-orbitron tracking-wider">
+            Yu-Gi-Oh! Card Collector
+          </h1>
+           <p className="text-center text-gray-400 text-sm mt-1 font-orbitron">
+                Total: <span className="text-purple-300 font-bold">{totalCardCount}</span> | Unique: <span className="text-purple-300 font-bold">{uniqueCardNameCount}</span> | Prints: <span className="text-purple-300 font-bold">{collection.length}</span>
+            </p>
         </div>
       </header>
       
@@ -545,19 +465,9 @@ const App: React.FC = () => {
         {view === 'collection' && (
           <>
             {collection.length > 0 && (
-              <div className="p-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="p-4 flex items-center justify-between">
                 <ViewModeControl value={gridColumns} onChange={setGridColumns} />
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => exportCollectionToCSV(collection)}
-                        className="flex items-center gap-2 bg-gray-700 hover:bg-purple-700 text-white font-semibold py-2 px-3 rounded-lg transition-colors"
-                        aria-label="Export collection to CSV"
-                    >
-                        <DownloadIcon className="w-5 h-5" />
-                        <span>Export CSV</span>
-                    </button>
-                    <SortControl value={sortOrder} onChange={setSortOrder} />
-                </div>
+                <SortControl value={sortOrder} onChange={setSortOrder} />
               </div>
             )}
             <CollectionGrid 

@@ -4,7 +4,7 @@ import CardImage from './CardImage';
 
 interface CollectionGridProps {
   cards: Card[];
-  onCardClick: (card: Card) => void;
+  onCardClick?: (card: Card) => void;
   totalCollectionSize: number;
   gridColumns: number;
   mode?: 'view' | 'deck-building';
@@ -93,7 +93,7 @@ const CollectionGrid: React.FC<CollectionGridProps> = ({ cards, onCardClick, tot
           <CardItem
             key={card.id}
             card={card}
-            onClick={() => isDeckBuilding ? onAddToDeck?.(card) : onCardClick(card)}
+            onClick={() => isDeckBuilding ? onAddToDeck?.(card) : onCardClick?.(card)}
             isDeckBuilding={isDeckBuilding}
             availableQty={availableQty}
           />

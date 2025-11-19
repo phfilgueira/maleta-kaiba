@@ -18,7 +18,7 @@ const sortOptions = [
 
 const SortControl: React.FC<SortControlProps> = ({ value, onChange }) => {
   return (
-    <div className="flex items-center justify-end">
+    <div className="p-4 flex items-center justify-end">
       <label htmlFor="sort-order" className="text-sm text-gray-400 mr-2">Sort by:</label>
       <select
         id="sort-order"

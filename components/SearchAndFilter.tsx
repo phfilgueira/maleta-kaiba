@@ -31,7 +31,6 @@ const FilterSelect: React.FC<{
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }> = ({ label, name, value, options, onChange }) => (
   <div>
-    {/* FIX: Cast `name` to string for htmlFor, id, and name attributes to satisfy React's expected types. */}
     <label htmlFor={String(name)} className="block text-xs text-purple-300 font-orbitron mb-1">{label}</label>
     <select
       id={String(name)}
@@ -78,7 +77,7 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({ searchQuery, onSearch
                 </div>
                 <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${showFilters ? 'bg-purple-700' : 'bg-gray-500'}`}
+                    className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${showFilters ? 'bg-purple-700' : 'bg-gray-600 hover:bg-gray-500'}`}
                     aria-expanded={showFilters}
                 >
                     <FilterIcon className="w-5 h-5" />

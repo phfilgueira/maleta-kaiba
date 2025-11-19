@@ -1,2 +1,15 @@
-// Este arquivo não está mais em uso. O ponto de entrada da aplicação agora é /src/index.tsx.
-// This file is no longer in use. The application entry point is now /src/index.tsx.
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+
+const root = createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);

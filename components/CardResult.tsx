@@ -6,9 +6,8 @@ import CardImage from './CardImage';
 import ArtworkSelector from './ArtworkSelector';
 
 interface CardResultProps {
-  // FIX: Omitted 'dateAdded' from the card prop type as it is not present on identified cards before they are added to the collection.
   card: Omit<Card, 'id' | 'quantity' | 'imageUrl' | 'dateAdded'>;
-  onAdd: (details: { rarity: string; quantity: number; collectionCode: string }) => Promise<void>;
+  onAdd: (details: { rarity: string; quantity: number; collectionCode: string }) => void;
   onRetry: () => void;
   availableArtworks: ArtworkInfo[];
   selectedArtwork: ArtworkInfo;
@@ -35,7 +34,6 @@ const CardResult: React.FC<CardResultProps> = ({ card, onAdd, onRetry, available
   const [quantity, setQuantity] = useState(1);
   const [collectionCode, setCollectionCode] = useState(card.collectionCode);
   const [showPrintWarning, setShowPrintWarning] = useState(!printWasFound);
-  const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
     setRarity(getInitialRarity(card.rarity));
@@ -44,18 +42,9 @@ const CardResult: React.FC<CardResultProps> = ({ card, onAdd, onRetry, available
     setShowPrintWarning(!printWasFound);
   }, [card, printWasFound]);
 
-  const handleAdd = async () => {
-    if (isAdding || quantity <= 0 || rarity.trim() === '' || collectionCode.trim() === '') {
-        return;
-    }
-    setIsAdding(true);
-    try {
-        await onAdd({ rarity, quantity, collectionCode });
-        // On success, the parent component handles unmounting this view.
-    } catch (error) {
-        console.error("Add to collection failed:", error);
-        // If it fails, the parent shows an alert, and we re-enable the button.
-        setIsAdding(false);
+  const handleAdd = () => {
+    if (quantity > 0 && rarity.trim() !== '' && collectionCode.trim() !== '') {
+        onAdd({ rarity, quantity, collectionCode });
     }
   };
 
@@ -157,25 +146,14 @@ const CardResult: React.FC<CardResultProps> = ({ card, onAdd, onRetry, available
                  <div className="flex flex-col sm:flex-row gap-4 mt-6">
                     <button
                         onClick={handleAdd}
-                        disabled={isAdding}
-                        className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 disabled:bg-green-800 disabled:cursor-wait"
+                        className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200"
                     >
-                        {isAdding ? (
-                            <>
-                                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                <span>Adding...</span>
-                            </>
-                        ) : (
-                            <>
-                                <PlusIcon className="w-6 h-6" />
-                                <span>Add to Collection</span>
-                            </>
-                        )}
+                        <PlusIcon className="w-6 h-6" />
+                        Add to Collection
                     </button>
                     <button
                         onClick={onRetry}
-                        disabled={isAdding}
-                        className="flex-1 flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                        className="flex-1 flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200"
                     >
                         <RetryIcon className="w-6 h-6" />
                         Scan Another

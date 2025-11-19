@@ -7,9 +7,9 @@ import ArtworkSelector from './ArtworkSelector';
 interface CardDetailModalProps {
   card: Card;
   onClose: () => void;
-  onUpdateQuantity: (cardId: string, newQuantity: number) => Promise<boolean>;
+  onUpdateQuantity: (cardId: string, newQuantity: number) => boolean;
   availableArtworks: ArtworkInfo[];
-  onUpdateArtwork: (newArtwork: ArtworkInfo) => Promise<void>;
+  onUpdateArtwork: (newArtwork: ArtworkInfo) => void;
   decks: Deck[];
 }
 
@@ -62,7 +62,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onClose, onUpda
   }, [card, decks]);
 
 
-  const handleConfirmAdjust = async () => {
+  const handleConfirmAdjust = () => {
     if (!adjustMode) return;
     const amount = Number(adjustValue);
     if (isNaN(amount) || amount <= 0) {
@@ -82,7 +82,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onClose, onUpda
             return;
         }
 
-        const success = await onUpdateQuantity(card.id, newQuantity);
+        const success = onUpdateQuantity(card.id, newQuantity);
         if (success) {
             if (newQuantity === 0) {
                 // Parent handles closing modal

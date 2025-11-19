@@ -213,8 +213,6 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ deckToEdit, collection, cardU
                             mode="deck-building"
                             onAddToDeck={addCardToDeck}
                             cardUsageMap={collectionGridUsageMap}
-                            // FIX: Provide a dummy onCardClick handler to satisfy the prop requirement for CollectionGrid.
-                            onCardClick={() => {}}
                         />
                     </div>
                 </div>
