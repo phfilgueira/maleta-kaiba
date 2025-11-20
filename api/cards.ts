@@ -1,25 +1,23 @@
 import { PrismaClient } from "@prisma/client";
 
 export const config = {
-  runtime: "edge",
+  runtime: "nodejs",
 };
 
 const prisma = new PrismaClient();
 
-export default async function handler(req: Request) {
+export default async function handler(req: any, res: any) {
   try {
     if (req.method === "GET") {
       const cards = await prisma.card.findMany({
         orderBy: { created_at: "desc" }
       });
 
-      return new Response(JSON.stringify(cards), {
-        headers: { "Content-Type": "application/json" }
-      });
+      return res.status(200).json(cards);
     }
 
     if (req.method === "POST") {
-      const data = await req.json();
+      const data = req.body;
 
       const newCard = await prisma.card.create({
         data: {
@@ -40,19 +38,13 @@ export default async function handler(req: Request) {
         },
       });
 
-      return new Response(JSON.stringify(newCard), {
-        status: 201,
-        headers: { "Content-Type": "application/json" }
-      });
+      return res.status(201).json(newCard);
     }
 
-    return new Response("Method not allowed", { status: 405 });
+    return res.status(405).json({ error: "Method not allowed" });
 
   } catch (err) {
     console.error("Erro na API /api/cards:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
