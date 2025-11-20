@@ -18,7 +18,7 @@ model User {
 }
 
 model Card {
-  id             Int      @id @default(autoincrement()) // id interno
+  id             Int      @id @default(autoincrement())
   nomeEN         String
   nomeBR         String
   efeitoEN       String?
@@ -35,8 +35,8 @@ model Card {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  owners      UserCard[]
-  deckEntries DeckCard[]
+  owners UserCard[]
+  // Removido deckEntries
 }
 
 model UserCard {
@@ -48,7 +48,8 @@ model UserCard {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   card Card @relation(fields: [cardId], references: [id], onDelete: Restrict)
 
-  deckEntries DeckCard[]
+  deckEntries DeckCard[] // aqui está o lado correto da relação para DeckCard
+
   @@index([userId])
   @@index([cardId])
   @@unique([userId, cardId]) // um usuário tem um registro por carta
