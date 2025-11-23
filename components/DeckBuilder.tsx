@@ -13,7 +13,7 @@ interface DeckBuilderProps {
 }
 
 const isExtraDeckCard = (card: Card): boolean => {
-    return ['Fusion', 'Synchro', 'Xyz', 'Link'].some(type => card.type.includes(type));
+    return card.typeTags.some(tag => ['Fusion', 'Synchro', 'Xyz', 'Link'].includes(tag));
 };
 
 const DeckSection: React.FC<{
@@ -160,16 +160,32 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ deckToEdit, collection, cardU
       return collection.filter(card => {
           const matchesQuery = query === '' || card.name.toLowerCase().includes(query) || (card.name_pt && card.name_pt.toLowerCase().includes(query)) || card.description.toLowerCase().includes(query) || (card.description_pt && card.description_pt.toLowerCase().includes(query));
           if (!matchesQuery) return false;
+          
           for (const key in activeFilters) {
               const filterValue = activeFilters[key]; if (!filterValue) continue;
               switch(key) {
-                  case 'mainType': if (!card.type.includes(filterValue as string)) return false; break;
-                  case 'attribute': if (card.attribute !== filterValue) return false; break;
-                  case 'race': if (card.race !== filterValue) return false; break;
-                  case 'subType': if (card.subType !== filterValue) return false; break;
-                  case 'level': if (card.level !== parseInt(filterValue as string, 10)) return false; break;
-                  case 'spellType': if (!card.type.includes('Spell') || !card.type.startsWith(filterValue as string)) return false; break;
-                  case 'trapType': if (!card.type.includes('Trap') || !card.type.startsWith(filterValue as string)) return false; break;
+                  case 'mainType': 
+                      if (card.type !== filterValue) return false; 
+                      break;
+                  case 'attribute': 
+                      if (card.attribute !== filterValue) return false; 
+                      break;
+                  case 'race': 
+                      if (!card.typeTags.includes(filterValue as string)) return false; 
+                      break;
+                  case 'subType': 
+                      if (!card.typeTags.includes(filterValue as string)) return false; 
+                      break;
+                  case 'level': 
+                      if (card.level !== parseInt(filterValue as string, 10)) return false; 
+                      break;
+                  case 'spellType': 
+                  case 'trapType':
+                      if (!card.typeTags.includes(filterValue as string)) return false; 
+                      break;
+                  case 'rarity': 
+                      if (card.rarity !== filterValue) return false; 
+                      break;
                   default: return true;
               }
           }

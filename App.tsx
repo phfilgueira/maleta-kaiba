@@ -24,6 +24,7 @@ interface ResultData {
   artworks: ArtworkInfo[];
   selectedArtwork: ArtworkInfo | null;
   printWasFound: boolean;
+  sets: { name: string; code: string; rarity: string; releaseDate?: string | null }[];
 }
 
 const rarityOrderMap = RARITIES.reduce((acc, rarity, index) => {
@@ -66,15 +67,103 @@ const App: React.FC = () => {
     try {
       const savedCollection = localStorage.getItem('yugioh-collection');
       if (savedCollection) {
-        const parsed = JSON.parse(savedCollection) as Card[];
-        return parsed.map((card, index) => ({
-            ...card,
-            dateAdded: card.dateAdded || Date.now() - (parsed.length - index) * 1000,
-            race: card.race || null,
-            subType: card.subType || null,
-            name_pt: card.name_pt || null,
-            description_pt: card.description_pt || null,
-        }));
+        const parsed = JSON.parse(savedCollection);
+        return parsed.map((card: any, index: number) => {
+            // MIGRATION LOGIC: Ensure tags exist and clean up old fields
+            let tags = card.typeTags || [];
+            
+            // Legacy Migration: Add missing tags from old race/subType fields if tags are empty
+            if (!tags.length) {
+                if (card.race) tags.push(card.race);
+                if (card.subType) tags.push(card.subType);
+            }
+
+            // ENRICHMENT LOGIC: Always run to ensure tags are populated based on type string
+            if (card.type && typeof card.type === 'string') {
+                const typeStr = card.type;
+                if (typeStr.includes('Synchro') && !tags.includes('Synchro')) tags.push('Synchro');
+                if (typeStr.includes('Tuner') && !tags.includes('Tuner')) tags.push('Tuner');
+                if (typeStr.includes('Fusion') && !tags.includes('Fusion')) tags.push('Fusion');
+                if (typeStr.includes('Xyz') && !tags.includes('Xyz')) tags.push('Xyz');
+                if (typeStr.includes('Link') && !tags.includes('Link')) tags.push('Link');
+                if (typeStr.includes('Ritual') && !tags.includes('Ritual')) tags.push('Ritual');
+                if (typeStr.includes('Pendulum') && !tags.includes('Pendulum')) tags.push('Pendulum');
+                if (typeStr.includes('Toon') && !tags.includes('Toon')) tags.push('Toon');
+                if (typeStr.includes('Spirit') && !tags.includes('Spirit')) tags.push('Spirit');
+                if (typeStr.includes('Gemini') && !tags.includes('Gemini')) tags.push('Gemini');
+                if (typeStr.includes('Union') && !tags.includes('Union')) tags.push('Union');
+                
+                // Add Effect tag if implied by subtypes (Gemini, Spirit, Toon, Union are almost always Effect)
+                // BUT only if not explicitly Normal
+                if (!typeStr.includes('Normal')) {
+                     if ((typeStr.includes('Toon') || typeStr.includes('Spirit') || typeStr.includes('Gemini') || typeStr.includes('Union')) && !tags.includes('Effect')) {
+                        tags.push('Effect');
+                    }
+                }
+            }
+
+            // CRITICAL FIX FOR NORMAL MONSTERS (e.g., Magicalibra, Blue-Eyes)
+            // If the type string explicitly contains "Normal", it MUST have "Normal" tag and be Non-Effect.
+            if (card.type && typeof card.type === 'string' && card.type.includes('Normal')) {
+                 tags = tags.filter((t: string) => t !== 'Effect'); // FORCE REMOVE EFFECT
+                 if (!tags.includes('Non-Effect')) {
+                     tags.push('Non-Effect');
+                 }
+                 // Add Normal tag if missing
+                 if (!tags.includes('Normal')) {
+                     tags.push('Normal');
+                 }
+            } 
+            // Generic Non-Effect cleanup
+            else if (tags.includes('Non-Effect')) {
+                 tags = tags.filter((t: string) => t !== 'Effect'); 
+            }
+            
+            // --- FIX DISPLAY TYPE FOR LEGACY DATA ---
+            // Reconstruct logic, but also aggressively clean 'Tuner' and 'Effect' from the existing type string
+            let displayType = card.type;
+            const isGenericMonster = displayType === 'Monster' || displayType === 'Effect Monster' || displayType === 'Normal Monster';
+            
+            // If generic, try to make it specific from tags
+            if (isGenericMonster || (tags.length > 0 && !displayType.includes('Spell') && !displayType.includes('Trap'))) {
+                 if (tags.includes('Link')) displayType = 'Link Monster';
+                 else if (tags.includes('Pendulum') && tags.includes('Normal')) displayType = 'Pendulum Normal Monster';
+                 else if (tags.includes('Pendulum')) displayType = 'Pendulum Monster';
+                 else if (tags.includes('Xyz')) displayType = 'XYZ Monster';
+                 else if (tags.includes('Synchro')) displayType = 'Synchro Monster';
+                 else if (tags.includes('Fusion')) displayType = 'Fusion Monster';
+                 else if (tags.includes('Ritual')) displayType = 'Ritual Monster';
+                 else if (tags.includes('Toon')) displayType = 'Toon Monster';
+                 else if (tags.includes('Gemini')) displayType = 'Gemini Monster';
+                 else if (tags.includes('Spirit')) displayType = 'Spirit Monster';
+                 else if (tags.includes('Union')) displayType = 'Union Monster';
+                 else if (tags.includes('Normal')) displayType = 'Normal Monster';
+                 // If just Effect, we might default to Monster later via cleaning
+            }
+
+            // AGGRESSIVE CLEANING: Remove 'Tuner' AND 'Effect' from the display string
+            // e.g. "Synchro Tuner Effect Monster" -> "Synchro Monster"
+            // e.g. "Effect Monster" -> "Monster"
+            if (typeof displayType === 'string') {
+                displayType = displayType
+                    .replace(/Tuner/g, '')
+                    .replace(/Effect/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            return {
+                ...card,
+                type: displayType, // Updated detailed type
+                typeTags: tags,
+                // Ensure optional fields are null, not undefined
+                dateAdded: card.dateAdded || Date.now() - (parsed.length - index) * 1000,
+                name_pt: card.name_pt || null,
+                description_pt: card.description_pt || null,
+                collectionName: card.collectionName || null,
+                releaseDate: card.releaseDate || null,
+            } as Card;
+        });
       }
       return [];
     } catch (error) {
@@ -100,6 +189,7 @@ const App: React.FC = () => {
     artworks: [],
     selectedArtwork: null,
     printWasFound: true,
+    sets: []
   });
   const [isLoading, setIsLoading] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -162,9 +252,9 @@ const App: React.FC = () => {
     return availableArtworks[0];
   }, []);
 
-  const processAndSetCardResult = useCallback(async (searchPromise: Promise<{card: IdentifiedCardInfo, artworks: ArtworkInfo[], printWasFound: boolean}>) => {
+  const processAndSetCardResult = useCallback(async (searchPromise: Promise<{card: IdentifiedCardInfo, artworks: ArtworkInfo[], printWasFound: boolean, sets: any[]}>) => {
     try {
-        const { card, artworks, printWasFound } = await searchPromise;
+        const { card, artworks, printWasFound, sets } = await searchPromise;
         
         if (artworks.length === 0) {
             throw new Error(`Could not find official artwork for "${card.name}". The card data might be incorrect.`);
@@ -177,6 +267,7 @@ const App: React.FC = () => {
             artworks,
             selectedArtwork: defaultArtwork,
             printWasFound,
+            sets
         });
         setView('result');
     } catch (e) {
@@ -211,10 +302,22 @@ const App: React.FC = () => {
     setResultData(prev => ({ ...prev, selectedArtwork: artwork }));
   };
 
-  const addCardToCollection = (details: { rarity: string; quantity: number; collectionCode: string }) => {
+  const addCardToCollection = (details: { rarity: string; quantity: number; collectionCode: string, collectionName?: string, releaseDate?: string | null }) => {
     if (!resultData.card || !resultData.selectedArtwork) return;
     saveArtworkPreference(details.collectionCode, resultData.selectedArtwork.id);
     const newCardId = `${details.collectionCode}-${details.rarity}-${resultData.selectedArtwork.id}`;
+
+    // Get collection name if passed from CardResult, otherwise try to find it in sets
+    let collName = details.collectionName;
+    let relDate = details.releaseDate;
+
+    if ((!collName || !relDate) && resultData.sets) {
+       const matchingSet = resultData.sets.find(s => s.code === details.collectionCode);
+       if (matchingSet) {
+           if (!collName) collName = matchingSet.name;
+           if (!relDate) relDate = matchingSet.releaseDate;
+       }
+    }
 
     setCollection(prev => {
         const existingCardIndex = prev.findIndex(c => c.id === newCardId);
@@ -223,15 +326,19 @@ const App: React.FC = () => {
             const updatedCollection = [...prev];
             const existingCard = updatedCollection[existingCardIndex];
             existingCard.quantity += details.quantity;
+            if (collName && !existingCard.collectionName) existingCard.collectionName = collName;
+            if (relDate && !existingCard.releaseDate) existingCard.releaseDate = relDate;
             return updatedCollection;
         } else {
             const newCard: Card = {
-              ...resultData.card,
+              ...resultData.card!,
               id: newCardId,
               collectionCode: details.collectionCode,
+              collectionName: collName || null,
+              releaseDate: relDate || null,
               rarity: details.rarity,
               quantity: details.quantity,
-              imageUrl: resultData.selectedArtwork.imageUrl,
+              imageUrl: resultData.selectedArtwork!.imageUrl,
               dateAdded: Date.now(),
             };
             return [...prev, newCard];
@@ -242,7 +349,7 @@ const App: React.FC = () => {
 
   const resetScan = () => {
     setView('collection');
-    setResultData({ card: null, artworks: [], selectedArtwork: null, printWasFound: true });
+    setResultData({ card: null, artworks: [], selectedArtwork: null, printWasFound: true, sets: [] });
   };
   
   const startScan = () => {
@@ -395,16 +502,42 @@ const App: React.FC = () => {
     return collection.filter(card => {
         const matchesQuery = query === '' || card.name.toLowerCase().includes(query) || (card.name_pt && card.name_pt.toLowerCase().includes(query)) || card.description.toLowerCase().includes(query) || (card.description_pt && card.description_pt.toLowerCase().includes(query));
         if (!matchesQuery) return false;
+        
         for (const key in activeFilters) {
             const filterValue = activeFilters[key]; if (!filterValue) continue;
             switch(key) {
-                case 'mainType': if (!card.type.includes(filterValue as string)) return false; break;
-                case 'attribute': if (card.attribute !== filterValue) return false; break;
-                case 'race': if (card.race !== filterValue) return false; break;
-                case 'subType': if (card.subType !== filterValue) return false; break;
-                case 'level': if (card.level !== parseInt(filterValue as string, 10)) return false; break;
-                case 'spellType': if (!card.type.includes('Spell') || !card.type.startsWith(filterValue as string)) return false; break;
-                case 'trapType': if (!card.type.includes('Trap') || !card.type.startsWith(filterValue as string)) return false; break;
+                case 'mainType': 
+                    // Use includes check so "Synchro Monster" matches "Monster"
+                    if (!card.type.includes(filterValue as string)) return false; 
+                    break;
+                case 'attribute': 
+                    if (card.attribute !== filterValue) return false; 
+                    break;
+                case 'race': 
+                    // 'race' filter now checks typeTags
+                    if (!card.typeTags.includes(filterValue as string)) return false; 
+                    break;
+                case 'subType': 
+                    // 'subType' filter now checks typeTags
+                    if (!card.typeTags.includes(filterValue as string)) return false; 
+                    break;
+                case 'level': 
+                    if (card.level !== parseInt(filterValue as string, 10)) return false; 
+                    break;
+                case 'spellType': 
+                case 'trapType':
+                    // Spell/Trap specific types are now also in Tags (e.g. Continuous, Field)
+                    if (!card.typeTags.includes(filterValue as string)) return false; 
+                    break;
+                case 'rarity': 
+                    if (card.rarity !== filterValue) return false; 
+                    break;
+                case 'releaseDate':
+                    // If card has no date, it doesn't match a date filter (safest assumption)
+                    if (!card.releaseDate) return false;
+                    // String comparison works for ISO dates (YYYY-MM-DD): "2000-01-01" < "2024-01-01"
+                    if (card.releaseDate > (filterValue as string)) return false;
+                    break;
                 default: return false;
             }
         }
@@ -465,9 +598,11 @@ const App: React.FC = () => {
         {view === 'collection' && (
           <>
             {collection.length > 0 && (
-              <div className="p-4 flex items-center justify-between">
+              <div className="px-4 pt-4 pb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <ViewModeControl value={gridColumns} onChange={setGridColumns} />
-                <SortControl value={sortOrder} onChange={setSortOrder} />
+                <div className="w-full sm:w-auto">
+                  <SortControl value={sortOrder} onChange={setSortOrder} />
+                </div>
               </div>
             )}
             <CollectionGrid 
@@ -505,9 +640,15 @@ const App: React.FC = () => {
       
       {view === 'result' && resultData.card && resultData.selectedArtwork && (
         <CardResult 
-            key={resultData.card.cardCode} card={resultData.card} onAdd={addCardToCollection} onRetry={startScan}
-            availableArtworks={resultData.artworks} selectedArtwork={resultData.selectedArtwork}
-            onArtworkSelect={handleArtworkSelect} printWasFound={resultData.printWasFound}
+            key={resultData.card.cardCode} 
+            card={resultData.card} 
+            onAdd={addCardToCollection} 
+            onRetry={startScan}
+            availableArtworks={resultData.artworks} 
+            selectedArtwork={resultData.selectedArtwork}
+            onArtworkSelect={handleArtworkSelect} 
+            printWasFound={resultData.printWasFound}
+            validSets={resultData.sets}
         />
       )}
 

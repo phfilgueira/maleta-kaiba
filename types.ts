@@ -2,9 +2,9 @@ export interface Card {
   id: string; // Will be a composite of cardCode and rarity
   name: string;
   name_pt: string | null;
-  type: string;
-  race: string | null;
-  subType: string | null;
+  type: string; // Now standardized to 'Monster', 'Spell', or 'Trap'
+  // race and subType replaced by typeTags
+  typeTags: string[];
   attribute: string | null;
   level: number | null;
   atk: number | null;
@@ -14,9 +14,11 @@ export interface Card {
   imageUrl: string;
   cardCode: string;
   collectionCode: string;
+  collectionName: string | null;
   rarity: string;
   quantity: number;
   dateAdded: number;
+  releaseDate?: string | null;
 }
 
 export type AppView = 'collection' | 'scanning' | 'result' | 'decks' | 'deck-editor';
@@ -24,6 +26,7 @@ export type AppView = 'collection' | 'scanning' | 'result' | 'decks' | 'deck-edi
 export interface ArtworkInfo {
     id: number;
     imageUrl: string;
+    smallImageUrl?: string;
 }
 
 export interface Deck {

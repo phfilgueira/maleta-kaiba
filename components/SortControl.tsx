@@ -18,13 +18,13 @@ const sortOptions = [
 
 const SortControl: React.FC<SortControlProps> = ({ value, onChange }) => {
   return (
-    <div className="p-4 flex items-center justify-end">
-      <label htmlFor="sort-order" className="text-sm text-gray-400 mr-2">Sort by:</label>
+    <div className="flex items-center gap-2 w-full sm:w-auto">
+      <label htmlFor="sort-order" className="text-sm text-gray-400 whitespace-nowrap">Sort by:</label>
       <select
         id="sort-order"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500 appearance-none"
+        className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500 appearance-none flex-grow sm:flex-grow-0 w-full sm:w-auto"
         style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
       >
         {sortOptions.map(option => (

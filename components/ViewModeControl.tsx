@@ -16,7 +16,7 @@ const ViewModeControl: React.FC<ViewModeControlProps> = ({ value, onChange }) =>
 
   return (
     <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-400 mr-2">View:</span>
+        <span className="text-sm text-gray-400 mr-2 whitespace-nowrap">View:</span>
         <div className="flex items-center bg-gray-700 rounded-lg p-1">
             {modes.map(mode => (
                 <button

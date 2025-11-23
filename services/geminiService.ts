@@ -5,14 +5,9 @@ let ai: GoogleGenAI | null = null;
 
 const getAiClient = () => {
   if (!ai) {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      console.error("Gemini API Key not found");
-      throw new Error("API Key missing");
-    }
-
-    ai = new GoogleGenAI({ apiKey });
+    // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+    // Assume this variable is pre-configured, valid, and accessible.
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
   return ai;

@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, ArtworkInfo, Deck } from '../types';
 import { PlusIcon, MinusIcon, TrashIcon, CloseIcon } from './icons';
 import CardImage from './CardImage';
 import ArtworkSelector from './ArtworkSelector';
+import { getCardSets } from '../services/ygoProDeckService';
 
 interface CardDetailModalProps {
   card: Card;
@@ -28,12 +30,46 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onClose, onUpda
   const [adjustMode, setAdjustMode] = useState<'add' | 'remove' | null>(null);
   const [adjustValue, setAdjustValue] = useState(1);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [fetchedSetName, setFetchedSetName] = useState<string | null>(null);
   
   useEffect(() => {
     setAdjustMode(null);
     setAdjustValue(1);
     setIsConfirmingDelete(false);
+    setFetchedSetName(null);
   }, [card]);
+
+  // Logic to fetch set name for legacy cards that don't have it saved
+  useEffect(() => {
+    if (!card.collectionName && card.collectionCode) {
+        getCardSets(card.cardCode).then(sets => {
+            if (sets && sets.length > 0) {
+                // Parse user collection code
+                const userCodeClean = card.collectionCode.toUpperCase().replace(/\s+/g, ''); 
+                const userParts = userCodeClean.split('-');
+                
+                const match = sets.find((s: any) => {
+                     const dbCodeClean = s.set_code.toUpperCase().replace(/\s+/g, '');
+                     const dbParts = dbCodeClean.split('-');
+                     
+                     // Direct Match
+                     if (dbCodeClean === userCodeClean) return true;
+                     
+                     // Fuzzy match (ignore region letters EN/PT/etc)
+                     if (dbParts.length >= 2 && userParts.length >= 2) {
+                        return dbParts[0] === userParts[0] && 
+                               dbParts[1].replace(/\D/g,'') === userParts[1].replace(/\D/g,'');
+                     }
+                     return false;
+                });
+                
+                if (match) {
+                    setFetchedSetName(match.set_name);
+                }
+            }
+        });
+    }
+  }, [card.collectionCode, card.collectionName, card.cardCode]);
 
   const allocationInfo = useMemo(() => {
     if (!card) return { maleta: 0, deckUsage: [] };
@@ -166,22 +202,53 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onClose, onUpda
                     <h2 className="text-2xl font-bold text-yellow-300 font-orbitron mb-1">{card.name}</h2>
                     {card.name_pt && <h3 className="text-lg text-gray-300 -mt-1 mb-2">{card.name_pt}</h3>}
                     <p className="text-lg text-purple-300">{card.rarity}</p>
-                    <p className="text-sm text-gray-400 mb-4">{card.collectionCode}</p>
+                    
+                    <div className="mb-4">
+                        <span className="text-sm font-bold text-gray-300 mr-2 border border-gray-600 rounded px-1.5 py-0.5 bg-gray-700">{card.collectionCode}</span>
+                        {(card.collectionName || fetchedSetName) && (
+                            <div className="inline-block">
+                                <span className="text-sm text-green-400 font-medium block sm:inline mt-1 sm:mt-0">
+                                    {card.collectionName || fetchedSetName}
+                                </span>
+                                {card.releaseDate && (
+                                    <span className="block text-xs text-gray-400">
+                                        Released: {card.releaseDate}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 
                 <div className="flex-grow">
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
                         <DetailItem label="Card Type" value={card.type} />
                         <DetailItem label="Attribute" value={card.attribute} />
-                        <DetailItem label="Type 1" value={card.race} />
-                        <DetailItem label="Type 2" value={card.subType} />
+                        
+                        <div className="col-span-2">
+                             <p className="text-xs text-purple-300 font-orbitron mb-1">Tags / Types</p>
+                             <div className="flex flex-wrap gap-1">
+                                {card.typeTags && card.typeTags.length > 0 ? (
+                                    card.typeTags
+                                    .filter(tag => tag !== 'Non-Effect') // Hide Non-Effect from display
+                                    .map(tag => (
+                                        <span key={tag} className="px-2 py-0.5 bg-gray-700 border border-gray-600 rounded-full text-xs text-gray-200">
+                                            {tag}
+                                        </span>
+                                    ))
+                                ) : (
+                                    <span className="text-gray-500 text-sm">None</span>
+                                )}
+                             </div>
+                        </div>
+
                         <DetailItem label="Level/Rank" value={card.level} />
                         <DetailItem label="ATK" value={card.atk} />
                         <DetailItem label="DEF" value={card.def} />
                         <DetailItem label="Card Code" value={card.cardCode} />
                     </div>
 
-                    <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700 max-h-28 overflow-y-auto">
+                    <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700 mb-4">
                         <p className="text-sm italic text-gray-300 whitespace-pre-wrap">{card.description}</p>
                         {card.description_pt && (
                             <>

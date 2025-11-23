@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FilterIcon, SearchIcon, CloseIcon } from './icons';
-import { CARD_MAIN_TYPES, MONSTER_ATTRIBUTES, MONSTER_TYPES, MONSTER_SUB_TYPES, SPELL_TYPES, TRAP_TYPES } from '../constants';
+import { CARD_MAIN_TYPES, MONSTER_ATTRIBUTES, MONSTER_TYPES, MONSTER_SUB_TYPES, SPELL_TYPES, TRAP_TYPES, RARITIES } from '../constants';
 
 type FilterValue = string | number | undefined;
 
@@ -12,6 +12,8 @@ interface Filters {
   level?: FilterValue;
   spellType?: FilterValue;
   trapType?: FilterValue;
+  rarity?: FilterValue;
+  releaseDate?: FilterValue;
   [key: string]: FilterValue;
 }
 
@@ -55,6 +57,10 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({ searchQuery, onSearch
         onFilterChange(e.target.name as keyof Filters, e.target.value);
     };
 
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        onFilterChange('releaseDate', e.target.value);
+    };
+
     return (
         <div className="p-4 bg-gray-800/50 sticky top-[60px] z-10 backdrop-blur-sm">
             <div className="flex gap-4">
@@ -88,7 +94,20 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({ searchQuery, onSearch
                  <div className="mt-4 p-4 bg-gray-800 rounded-lg border border-gray-700 animate-fade-in">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <FilterSelect label="Card Type" name="mainType" value={filters.mainType} options={CARD_MAIN_TYPES} onChange={handleSelectChange} />
+                        <FilterSelect label="Rarity" name="rarity" value={filters.rarity} options={RARITIES} onChange={handleSelectChange} />
                         
+                        <div>
+                            <label htmlFor="releaseDate" className="block text-xs text-purple-300 font-orbitron mb-1">Released Before</label>
+                            <input
+                                type="date"
+                                id="releaseDate"
+                                name="releaseDate"
+                                value={filters.releaseDate as string || ''}
+                                onChange={handleDateChange}
+                                className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500 [color-scheme:dark]"
+                            />
+                        </div>
+
                         {filters.mainType === 'Monster' && (
                             <>
                                 <FilterSelect label="Attribute" name="attribute" value={filters.attribute} options={MONSTER_ATTRIBUTES} onChange={handleSelectChange} />
