@@ -1,83 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // Uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // Uses direct connection
 }
 
+// 1. O Usuário do Sistema
 model User {
-  id        String     @id @default(uuid())
-  email     String     @unique
-  password  String
-  createdAt DateTime   @default(now())
+  id       String @id @default(uuid())
+  email    String @unique
+  password String
+  UserName     String
 
-  collection UserCard[]
-  decks      Deck[]
+  // Relacionamentos
+  collection UserCard[] // A coleção deste usuário
+  decks      Deck[] // Os decks deste usuário
 }
 
+// 2. A Definição da Carta (Dados estáticos da carta)
+// O ID aqui deve ser o mesmo ID composto gerado no frontend (Set-Raridade-ArtID)
 model Card {
-  id             Int      @id @default(autoincrement())
-  nomeEN         String
-  nomeBR         String
-  efeitoEN       String?
-  efeitoBR       String?
-  cardType       String   // Monster / Spell / Trap
-  atributo       String?  // FIRE, WATER, DARK, LIGHT...
-  tipo1          String?  // Dragon, Warrior, Quickplay, Field...
-  tipo2          String?  // Tuner, Gemini, Spirit...
-  levelOrRank    Int?     // Level / Rank
+  id             String   @id
+  name_en           String
+  name_pt        String?
+  type           String
+  typeTags       String[] // Array nativo do Postgres (ex: ['Dragon', 'Synchro', 'Effect'])
+  attribute      String?
+  level          Int?
   atk            Int?
   def            Int?
-  cardCode       String?  @unique
-  collectorCode  String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  description    String
+  description_pt String?
+  imageUrl       String
+  cardCode       String
+  collectionCode String
+  collectionName String?
+  rarity         String
+  releaseDate    String?
 
+  // Relacionamento reverso (quais usuários têm esta carta)
   owners UserCard[]
-  // Removido deckEntries
 }
 
+// 3. A Tabela de Ligação (Coleção do Usuário)
+// Define quantas cópias de uma carta específica um usuário possui
 model UserCard {
-  id        String   @id @default(uuid())
   userId    String
-  cardId    Int
-  quantity  Int      @default(0) // quantas cópias esse usuário possui dessa carta
+  cardId    String
+  quantity  Int
+  dateAdded Float // Timestamp (number no JS)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  card Card @relation(fields: [cardId], references: [id], onDelete: Restrict)
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
-  deckEntries DeckCard[] // aqui está o lado correto da relação para DeckCard
-
-  @@index([userId])
-  @@index([cardId])
-  @@unique([userId, cardId]) // um usuário tem um registro por carta
+  @@id([userId, cardId]) // Chave primária composta (um usuário só tem 1 registro por carta única)
 }
 
+// 4. Decks
 model Deck {
-  id        String    @id @default(uuid())
-  name      String
-  userId    String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          String @id
+  name        String
+  dateCreated Float
+  dateUpdated Float
+  userId      String
+
+  // Armazenamos os IDs das cartas como arrays de strings.
+  // O Postgres suporta isso nativamente e facilita a sincronia com seu frontend atual.
+  mainDeck  String[]
+  extraDeck String[]
+  sideDeck  String[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cards DeckCard[]
-
-  @@index([userId])
-}
-
-model DeckCard {
-  id         String   @id @default(uuid())
-  deckId     String
-  userCardId String
-  quantity   Int      @default(1)
-
-  deck     Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  userCard UserCard @relation(fields: [userCardId], references: [id], onDelete: Restrict)
-
-  @@unique([deckId, userCardId]) // evita duplicar a mesma userCard no mesmo deck
-  @@index([deckId])
-  @@index([userCardId])
 }
