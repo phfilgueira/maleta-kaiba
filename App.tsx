@@ -11,6 +11,7 @@ import SortControl from './components/SortControl';
 import ScanErrorDialog from './components/ScanErrorDialog';
 import SearchAndFilter from './components/SearchAndFilter';
 import ViewModeControl from './components/ViewModeControl';
+import LoginScreen from './components/LoginScreen';
 import { CameraIcon, BookOpenIcon } from './components/icons';
 import { identifyCard } from './services/geminiService';
 import { searchCard, getArtworksForCard } from './services/ygoProDeckService';
@@ -182,7 +183,7 @@ const App: React.FC = () => {
     }
   });
 
-  const [view, setView] = useState<AppView>('collection');
+  const [view, setView] = useState<AppView>('login');
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
   const [resultData, setResultData] = useState<ResultData>({
     card: null,
@@ -203,6 +204,7 @@ const App: React.FC = () => {
     const savedColumns = localStorage.getItem('yugioh-grid-columns');
     return savedColumns ? parseInt(savedColumns, 10) : 2;
   });
+  const [username, setUsername] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -560,17 +562,39 @@ const App: React.FC = () => {
     });
   }, [filteredCollection, sortOrder]);
 
+  const handleLogin = (user: string) => {
+    setUsername(user);
+    setView('collection');
+  };
+
+  const handleGuestAccess = () => {
+    setUsername('Guest');
+    setView('collection');
+  };
+
+  if (view === 'login') {
+      return <LoginScreen onLogin={handleLogin} onGuestAccess={handleGuestAccess} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <header className="bg-gray-800/50 backdrop-blur-sm sticky top-0 z-20 shadow-lg shadow-purple-900/20">
-        <div className="container mx-auto px-4 py-3">
-          <h1 className="text-2xl font-bold text-center text-purple-300 font-orbitron tracking-wider">
-            Yu-Gi-Oh! Card Collector
-          </h1>
-           <p className="text-center text-gray-400 text-sm mt-1 font-orbitron">
-                Total: <span className="text-purple-300 font-bold">{totalCardCount}</span> | Unique: <span className="text-purple-300 font-bold">{uniqueCardNameCount}</span> | Prints: <span className="text-purple-300 font-bold">{collection.length}</span>
-            </p>
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center relative">
+          <div className="w-full">
+              <h1 className="text-2xl font-bold text-center text-purple-300 font-orbitron tracking-wider">
+                Yu-Gi-Oh! Card Collector
+              </h1>
+              <p className="text-center text-gray-400 text-sm mt-1 font-orbitron">
+                    Total: <span className="text-purple-300 font-bold">{totalCardCount}</span> | Unique: <span className="text-purple-300 font-bold">{uniqueCardNameCount}</span> | Prints: <span className="text-purple-300 font-bold">{collection.length}</span>
+                </p>
+          </div>
+          {/* Logout / User Info could go here */}
+          <button 
+            onClick={() => setView('login')} 
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-white"
+          >
+            Logout
+          </button>
         </div>
       </header>
       
