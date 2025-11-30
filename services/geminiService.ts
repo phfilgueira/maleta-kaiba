@@ -7,7 +7,7 @@ const getAiClient = () => {
   if (!ai) {
     // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
     // Assume this variable is pre-configured, valid, and accessible.
-    ai = new GoogleGenAI({ apiKey: process.env.Gemini_API_Key });
+    ai = new GoogleGenAI({ apiKey: process.env.VITE_Gemini_API_Key });
   }
 
   return ai;
