@@ -1,18 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Inicializa o cliente de forma preguiçosa para evitar erros se a API KEY não estiver pronta no load
+// Cliente inicializado só quando for usado (lazy)
 let ai: GoogleGenAI | null = null;
 
 const getAiClient = () => {
   if (!ai) {
-    // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
-    // Assume this variable is pre-configured, valid, and accessible.
-        ai = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY, });
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("VITE_GEMINI_API_KEY não encontrada em import.meta.env");
+    }
+
+    ai = new GoogleGenAI({ apiKey });
   }
-
-  return ai;
-};
-
 export interface IdentificationResult {
   cardCode: string; // O número de 8 dígitos (Passcode)
   collectionCode: string; // O código do set (ex: LOB-001)
