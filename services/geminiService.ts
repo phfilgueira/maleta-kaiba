@@ -4,14 +4,17 @@ import { GoogleGenAI } from "@google/genai";
 let ai: GoogleGenAI | null = null;
 
 const getAiClient = () => {
-  if (!ai) {
+    if (!ai) {
     // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
     // Assume this variable is pre-configured, valid, and accessible.
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    apiKey: process.env.VITE_GEMINI_API_KEY,
+        ai = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY, });
   }
 
   return ai;
 };
+
+
 
 export interface IdentificationResult {
   cardCode: string; // O número de 8 dígitos (Passcode)
