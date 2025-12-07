@@ -21,7 +21,7 @@ export interface Card {
   releaseDate?: string | null;
 }
 
-export type AppView = 'login' | 'collection' | 'scanning' | 'result' | 'decks' | 'deck-editor';
+export type AppView = 'collection' | 'scanning' | 'result' | 'decks' | 'deck-editor';
 
 export interface ArtworkInfo {
     id: number;

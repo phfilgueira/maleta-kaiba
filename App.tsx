@@ -11,8 +11,8 @@ import SortControl from './components/SortControl';
 import ScanErrorDialog from './components/ScanErrorDialog';
 import SearchAndFilter from './components/SearchAndFilter';
 import ViewModeControl from './components/ViewModeControl';
-import LoginScreen from './components/LoginScreen';
-import { CameraIcon, BookOpenIcon } from './components/icons';
+import SettingsModal from './components/SettingsModal';
+import { CameraIcon, BookOpenIcon, CogIcon } from './components/icons';
 import { identifyCard } from './services/geminiService';
 import { searchCard, getArtworksForCard } from './services/ygoProDeckService';
 import { RARITIES } from './constants';
@@ -36,6 +36,110 @@ const rarityOrderMap = RARITIES.reduce((acc, rarity, index) => {
 type ActiveFilters = { [key: string]: string | number | undefined };
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
+
+// Helper function to sanitize and migrate collection data
+const processLoadedCollection = (rawCollection: any[]): Card[] => {
+    if (!Array.isArray(rawCollection)) return [];
+    
+    return rawCollection
+        .filter(item => item !== null && typeof item === 'object')
+        .map((card: any, index: number, arr: any[]) => {
+            // MIGRATION LOGIC: Ensure tags exist and clean up old fields
+            let tags = card.typeTags || [];
+            
+            // Legacy Migration: Add missing tags from old race/subType fields if tags are empty
+            if (!tags.length) {
+                if (card.race) tags.push(card.race);
+                if (card.subType) tags.push(card.subType);
+            }
+
+            // ENRICHMENT LOGIC: Always run to ensure tags are populated based on type string
+            if (card.type && typeof card.type === 'string') {
+                const typeStr = card.type;
+                if (typeStr.includes('Synchro') && !tags.includes('Synchro')) tags.push('Synchro');
+                if (typeStr.includes('Tuner') && !tags.includes('Tuner')) tags.push('Tuner');
+                if (typeStr.includes('Fusion') && !tags.includes('Fusion')) tags.push('Fusion');
+                if (typeStr.includes('Xyz') && !tags.includes('Xyz')) tags.push('Xyz');
+                if (typeStr.includes('Link') && !tags.includes('Link')) tags.push('Link');
+                if (typeStr.includes('Ritual') && !tags.includes('Ritual')) tags.push('Ritual');
+                if (typeStr.includes('Pendulum') && !tags.includes('Pendulum')) tags.push('Pendulum');
+                if (typeStr.includes('Toon') && !tags.includes('Toon')) tags.push('Toon');
+                if (typeStr.includes('Spirit') && !tags.includes('Spirit')) tags.push('Spirit');
+                if (typeStr.includes('Gemini') && !tags.includes('Gemini')) tags.push('Gemini');
+                if (typeStr.includes('Union') && !tags.includes('Union')) tags.push('Union');
+                
+                // Add Effect tag if implied by subtypes (Gemini, Spirit, Toon, Union are almost always Effect)
+                // BUT only if not explicitly Normal
+                if (!typeStr.includes('Normal')) {
+                        if ((typeStr.includes('Toon') || typeStr.includes('Spirit') || typeStr.includes('Gemini') || typeStr.includes('Union')) && !tags.includes('Effect')) {
+                        tags.push('Effect');
+                    }
+                }
+            }
+
+            // CRITICAL FIX FOR NORMAL MONSTERS (e.g., Magicalibra, Blue-Eyes)
+            // If the type string explicitly contains "Normal", it MUST have "Normal" tag and be Non-Effect.
+            if (card.type && typeof card.type === 'string' && card.type.includes('Normal')) {
+                    tags = tags.filter((t: string) => t !== 'Effect'); // FORCE REMOVE EFFECT
+                    if (!tags.includes('Non-Effect')) {
+                        tags.push('Non-Effect');
+                    }
+                    // Add Normal tag if missing
+                    if (!tags.includes('Normal')) {
+                        tags.push('Normal');
+                    }
+            } 
+            // Generic Non-Effect cleanup
+            else if (tags.includes('Non-Effect')) {
+                    tags = tags.filter((t: string) => t !== 'Effect'); 
+            }
+            
+            // --- FIX DISPLAY TYPE FOR LEGACY DATA ---
+            // Reconstruct logic, but also aggressively clean 'Tuner' and 'Effect' from the existing type string
+            let displayType = card.type;
+            const isGenericMonster = displayType === 'Monster' || displayType === 'Effect Monster' || displayType === 'Normal Monster';
+            
+            // If generic, try to make it specific from tags
+            if (isGenericMonster || (tags.length > 0 && !displayType.includes('Spell') && !displayType.includes('Trap'))) {
+                    if (tags.includes('Link')) displayType = 'Link Monster';
+                    else if (tags.includes('Pendulum') && tags.includes('Normal')) displayType = 'Pendulum Normal Monster';
+                    else if (tags.includes('Pendulum')) displayType = 'Pendulum Monster';
+                    else if (tags.includes('Xyz')) displayType = 'XYZ Monster';
+                    else if (tags.includes('Synchro')) displayType = 'Synchro Monster';
+                    else if (tags.includes('Fusion')) displayType = 'Fusion Monster';
+                    else if (tags.includes('Ritual')) displayType = 'Ritual Monster';
+                    else if (tags.includes('Toon')) displayType = 'Toon Monster';
+                    else if (tags.includes('Gemini')) displayType = 'Gemini Monster';
+                    else if (tags.includes('Spirit')) displayType = 'Spirit Monster';
+                    else if (tags.includes('Union')) displayType = 'Union Monster';
+                    else if (tags.includes('Normal')) displayType = 'Normal Monster';
+                    // If just Effect, we might default to Monster later via cleaning
+            }
+
+            // AGGRESSIVE CLEANING: Remove 'Tuner' AND 'Effect' from the display string
+            // e.g. "Synchro Tuner Effect Monster" -> "Synchro Monster"
+            // e.g. "Effect Monster" -> "Monster"
+            if (typeof displayType === 'string') {
+                displayType = displayType
+                    .replace(/Tuner/g, '')
+                    .replace(/Effect/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            return {
+                ...card,
+                type: displayType, // Updated detailed type
+                typeTags: tags,
+                // Ensure optional fields are null, not undefined
+                dateAdded: card.dateAdded || Date.now() - (arr.length - index) * 1000,
+                name_pt: card.name_pt || null,
+                description_pt: card.description_pt || null,
+                collectionName: card.collectionName || null,
+                releaseDate: card.releaseDate || null,
+            } as Card;
+        });
+};
 
 // Simple navigator component
 const AppNavigator: React.FC<{
@@ -69,102 +173,7 @@ const App: React.FC = () => {
       const savedCollection = localStorage.getItem('yugioh-collection');
       if (savedCollection) {
         const parsed = JSON.parse(savedCollection);
-        return parsed.map((card: any, index: number) => {
-            // MIGRATION LOGIC: Ensure tags exist and clean up old fields
-            let tags = card.typeTags || [];
-            
-            // Legacy Migration: Add missing tags from old race/subType fields if tags are empty
-            if (!tags.length) {
-                if (card.race) tags.push(card.race);
-                if (card.subType) tags.push(card.subType);
-            }
-
-            // ENRICHMENT LOGIC: Always run to ensure tags are populated based on type string
-            if (card.type && typeof card.type === 'string') {
-                const typeStr = card.type;
-                if (typeStr.includes('Synchro') && !tags.includes('Synchro')) tags.push('Synchro');
-                if (typeStr.includes('Tuner') && !tags.includes('Tuner')) tags.push('Tuner');
-                if (typeStr.includes('Fusion') && !tags.includes('Fusion')) tags.push('Fusion');
-                if (typeStr.includes('Xyz') && !tags.includes('Xyz')) tags.push('Xyz');
-                if (typeStr.includes('Link') && !tags.includes('Link')) tags.push('Link');
-                if (typeStr.includes('Ritual') && !tags.includes('Ritual')) tags.push('Ritual');
-                if (typeStr.includes('Pendulum') && !tags.includes('Pendulum')) tags.push('Pendulum');
-                if (typeStr.includes('Toon') && !tags.includes('Toon')) tags.push('Toon');
-                if (typeStr.includes('Spirit') && !tags.includes('Spirit')) tags.push('Spirit');
-                if (typeStr.includes('Gemini') && !tags.includes('Gemini')) tags.push('Gemini');
-                if (typeStr.includes('Union') && !tags.includes('Union')) tags.push('Union');
-                
-                // Add Effect tag if implied by subtypes (Gemini, Spirit, Toon, Union are almost always Effect)
-                // BUT only if not explicitly Normal
-                if (!typeStr.includes('Normal')) {
-                     if ((typeStr.includes('Toon') || typeStr.includes('Spirit') || typeStr.includes('Gemini') || typeStr.includes('Union')) && !tags.includes('Effect')) {
-                        tags.push('Effect');
-                    }
-                }
-            }
-
-            // CRITICAL FIX FOR NORMAL MONSTERS (e.g., Magicalibra, Blue-Eyes)
-            // If the type string explicitly contains "Normal", it MUST have "Normal" tag and be Non-Effect.
-            if (card.type && typeof card.type === 'string' && card.type.includes('Normal')) {
-                 tags = tags.filter((t: string) => t !== 'Effect'); // FORCE REMOVE EFFECT
-                 if (!tags.includes('Non-Effect')) {
-                     tags.push('Non-Effect');
-                 }
-                 // Add Normal tag if missing
-                 if (!tags.includes('Normal')) {
-                     tags.push('Normal');
-                 }
-            } 
-            // Generic Non-Effect cleanup
-            else if (tags.includes('Non-Effect')) {
-                 tags = tags.filter((t: string) => t !== 'Effect'); 
-            }
-            
-            // --- FIX DISPLAY TYPE FOR LEGACY DATA ---
-            // Reconstruct logic, but also aggressively clean 'Tuner' and 'Effect' from the existing type string
-            let displayType = card.type;
-            const isGenericMonster = displayType === 'Monster' || displayType === 'Effect Monster' || displayType === 'Normal Monster';
-            
-            // If generic, try to make it specific from tags
-            if (isGenericMonster || (tags.length > 0 && !displayType.includes('Spell') && !displayType.includes('Trap'))) {
-                 if (tags.includes('Link')) displayType = 'Link Monster';
-                 else if (tags.includes('Pendulum') && tags.includes('Normal')) displayType = 'Pendulum Normal Monster';
-                 else if (tags.includes('Pendulum')) displayType = 'Pendulum Monster';
-                 else if (tags.includes('Xyz')) displayType = 'XYZ Monster';
-                 else if (tags.includes('Synchro')) displayType = 'Synchro Monster';
-                 else if (tags.includes('Fusion')) displayType = 'Fusion Monster';
-                 else if (tags.includes('Ritual')) displayType = 'Ritual Monster';
-                 else if (tags.includes('Toon')) displayType = 'Toon Monster';
-                 else if (tags.includes('Gemini')) displayType = 'Gemini Monster';
-                 else if (tags.includes('Spirit')) displayType = 'Spirit Monster';
-                 else if (tags.includes('Union')) displayType = 'Union Monster';
-                 else if (tags.includes('Normal')) displayType = 'Normal Monster';
-                 // If just Effect, we might default to Monster later via cleaning
-            }
-
-            // AGGRESSIVE CLEANING: Remove 'Tuner' AND 'Effect' from the display string
-            // e.g. "Synchro Tuner Effect Monster" -> "Synchro Monster"
-            // e.g. "Effect Monster" -> "Monster"
-            if (typeof displayType === 'string') {
-                displayType = displayType
-                    .replace(/Tuner/g, '')
-                    .replace(/Effect/g, '')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-            }
-
-            return {
-                ...card,
-                type: displayType, // Updated detailed type
-                typeTags: tags,
-                // Ensure optional fields are null, not undefined
-                dateAdded: card.dateAdded || Date.now() - (parsed.length - index) * 1000,
-                name_pt: card.name_pt || null,
-                description_pt: card.description_pt || null,
-                collectionName: card.collectionName || null,
-                releaseDate: card.releaseDate || null,
-            } as Card;
-        });
+        return processLoadedCollection(parsed);
       }
       return [];
     } catch (error) {
@@ -183,7 +192,7 @@ const App: React.FC = () => {
     }
   });
 
-  const [view, setView] = useState<AppView>('login');
+  const [view, setView] = useState<AppView>('collection');
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
   const [resultData, setResultData] = useState<ResultData>({
     card: null,
@@ -204,15 +213,27 @@ const App: React.FC = () => {
     const savedColumns = localStorage.getItem('yugioh-grid-columns');
     return savedColumns ? parseInt(savedColumns, 10) : 2;
   });
-  const [username, setUsername] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
 
   useEffect(() => {
-    localStorage.setItem('yugioh-collection', JSON.stringify(collection));
+    try {
+        localStorage.setItem('yugioh-collection', JSON.stringify(collection));
+    } catch (e) {
+        console.error("Storage Quota Exceeded or Error Saving Collection:", e);
+        // Only alert if the collection is substantial to avoid annoyance
+        if (collection.length > 10) {
+            alert("Warning: Failed to save collection to local storage. You may be out of space.");
+        }
+    }
   }, [collection]);
   
   useEffect(() => {
-    localStorage.setItem('yugioh-decks', JSON.stringify(decks));
+    try {
+        localStorage.setItem('yugioh-decks', JSON.stringify(decks));
+    } catch (e) {
+        console.error("Storage Error Saving Decks:", e);
+    }
   }, [decks]);
   
   useEffect(() => {
@@ -499,6 +520,99 @@ const App: React.FC = () => {
     setView('decks');
   };
 
+  // --- Data Management Handlers ---
+  const handleExportData = () => {
+    const data = {
+        collection: JSON.parse(localStorage.getItem('yugioh-collection') || '[]'),
+        decks: JSON.parse(localStorage.getItem('yugioh-decks') || '[]'),
+        artworkPrefs: JSON.parse(localStorage.getItem('yugioh-artwork-prefs') || '{}'),
+        timestamp: new Date().toISOString(),
+        version: 1
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `yugioh-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportData = (file: File) => {
+    const reader = new FileReader();
+    
+    reader.onerror = () => {
+        alert("Error reading file. Please try again.");
+    };
+
+    reader.onload = (e) => {
+        const content = e.target?.result as string;
+        try {
+            const data = JSON.parse(content);
+            
+            let collectionData: any[] = [];
+            let decksData: any[] = [];
+            let artworkPrefsData: any = {};
+
+            // Handle different data structures for robustness
+            if (Array.isArray(data)) {
+                // Assuming it's just a raw collection array
+                collectionData = data;
+            } else if (data && typeof data === 'object') {
+                if (Array.isArray(data.collection)) {
+                    collectionData = data.collection;
+                    decksData = Array.isArray(data.decks) ? data.decks : [];
+                    artworkPrefsData = data.artworkPrefs || {};
+                } else if (data.cards && Array.isArray(data.cards)) {
+                    // Handle potential alternative naming
+                    collectionData = data.cards;
+                } else {
+                     throw new Error("Invalid file format: Could not find collection data.");
+                }
+            } else {
+                 throw new Error("Invalid file format: File is not a valid JSON object or array.");
+            }
+
+            // Process Data
+            const sanitizedCollection = processLoadedCollection(collectionData);
+            
+            // Validate Decks logic to ensure they don't crash the app
+            const sanitizedDecks = decksData.map((d: any) => ({
+                ...d,
+                mainDeck: Array.isArray(d.mainDeck) ? d.mainDeck : [],
+                extraDeck: Array.isArray(d.extraDeck) ? d.extraDeck : [],
+                sideDeck: Array.isArray(d.sideDeck) ? d.sideDeck : [],
+            })).filter((d: any) => d.id && d.name);
+
+            // Update State
+            setCollection(sanitizedCollection);
+            setDecks(sanitizedDecks);
+
+            // Update Artwork Prefs
+            if (artworkPrefsData && Object.keys(artworkPrefsData).length > 0) {
+                try {
+                    localStorage.setItem('yugioh-artwork-prefs', JSON.stringify(artworkPrefsData));
+                } catch(e) { console.error("Pref save fail", e); }
+            }
+            
+            const totalCards = sanitizedCollection.reduce((acc: number, c: any) => acc + (c.quantity || 1), 0);
+            
+            alert(`Restore Successful!\n\n• ${sanitizedCollection.length} Unique Cards\n• ${totalCards} Total Copies\n• ${sanitizedDecks.length} Decks`);
+            setShowSettings(false);
+            
+        } catch (err) {
+            console.error(err);
+            const msg = err instanceof Error ? err.message : "Unknown error";
+            alert(`Failed to import data: ${msg}`);
+        }
+    };
+    reader.readAsText(file);
+  };
+
+
   const filteredCollection = useMemo(() => {
     const query = searchQuery.toLowerCase();
     return collection.filter(card => {
@@ -562,20 +676,6 @@ const App: React.FC = () => {
     });
   }, [filteredCollection, sortOrder]);
 
-  const handleLogin = (user: string) => {
-    setUsername(user);
-    setView('collection');
-  };
-
-  const handleGuestAccess = () => {
-    setUsername('Guest');
-    setView('collection');
-  };
-
-  if (view === 'login') {
-      return <LoginScreen onLogin={handleLogin} onGuestAccess={handleGuestAccess} />;
-  }
-
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <header className="bg-gray-800/50 backdrop-blur-sm sticky top-0 z-20 shadow-lg shadow-purple-900/20">
@@ -588,13 +688,17 @@ const App: React.FC = () => {
                     Total: <span className="text-purple-300 font-bold">{totalCardCount}</span> | Unique: <span className="text-purple-300 font-bold">{uniqueCardNameCount}</span> | Prints: <span className="text-purple-300 font-bold">{collection.length}</span>
                 </p>
           </div>
-          {/* Logout / User Info could go here */}
-          <button 
-            onClick={() => setView('login')} 
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-white"
-          >
-            Logout
-          </button>
+          
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
+             <button
+                onClick={() => setShowSettings(true)}
+                className="text-gray-400 hover:text-white transition-colors p-2"
+                aria-label="Settings"
+             >
+                <CogIcon className="w-6 h-6" />
+             </button>
+          </div>
+
         </div>
       </header>
       
@@ -692,6 +796,14 @@ const App: React.FC = () => {
       {(scanError || isManualEntry) && (
         <ScanErrorDialog message={scanError || ''} onRetry={startScan} onManual={handleManualSearch}
           onClose={() => { setScanError(null); setIsManualEntry(false); }}
+        />
+      )}
+      
+      {showSettings && (
+        <SettingsModal 
+            onClose={() => setShowSettings(false)}
+            onExport={handleExportData}
+            onImport={handleImportData}
         />
       )}
 

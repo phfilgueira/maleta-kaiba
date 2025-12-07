@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { login } from "@/services/authService"; // <-- IMPORTANTE
 
 interface LoginScreenProps {
-  onLogin: (user: any) => void;
+  onLogin: (username: string) => void;
   onGuestAccess: () => void;
 }
 
@@ -11,20 +10,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onGuestAccess }) => 
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
-
+    
     setIsLoading(true);
-
-    try {
-      const user = await login(username, password); // 🔥 LOGIN REAL
-      onLogin(user); // passa o user autenticado
-    } catch (err: any) {
-      alert(err.message || "Login failed");
-    }
-
-    setIsLoading(false);
+    // Simulate API call
+    setTimeout(() => {
+      setIsLoading(false);
+      onLogin(username);
+    }, 800);
   };
 
   return (
@@ -36,7 +31,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onGuestAccess }) => 
       </div>
 
       <div className="bg-gray-800/80 backdrop-blur-md p-8 rounded-2xl shadow-2xl shadow-purple-900/50 w-full max-w-md border border-gray-700 z-10 animate-fade-in">
-
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 font-orbitron tracking-wider mb-2">
             Card Collection
@@ -45,7 +39,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onGuestAccess }) => 
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Username */}
           <div className="space-y-2">
             <label htmlFor="username" className="text-xs text-purple-300 font-orbitron uppercase tracking-wider ml-1">
               Username
@@ -60,7 +53,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onGuestAccess }) => 
             />
           </div>
 
-          {/* Password */}
           <div className="space-y-2">
             <label htmlFor="password" className="text-xs text-purple-300 font-orbitron uppercase tracking-wider ml-1">
               Password
@@ -75,7 +67,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onGuestAccess }) => 
             />
           </div>
 
-          {/* Button */}
           <button
             type="submit"
             disabled={isLoading || !username || !password}
@@ -93,14 +84,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onGuestAccess }) => 
             )}
           </button>
 
-          {/* OR */}
           <div className="relative flex items-center gap-4 py-2">
             <div className="flex-grow h-px bg-gray-700"></div>
             <span className="text-gray-500 text-xs uppercase">or</span>
             <div className="flex-grow h-px bg-gray-700"></div>
           </div>
 
-          {/* Guest */}
           <button
             type="button"
             onClick={onGuestAccess}
