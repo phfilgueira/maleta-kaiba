@@ -14,7 +14,6 @@ import ViewModeControl from './components/ViewModeControl';
 import SettingsModal from './components/SettingsModal';
 import { CameraIcon, BookOpenIcon, CogIcon } from './components/icons';
 //import { identifyCard } from './services/geminiService';
-import { identifyCard } from './services/openaiService'; 
 import { searchCard, getArtworksForCard } from './services/ygoProDeckService';
 import { RARITIES } from './constants';
 import { saveArtworkPreference, getArtworkPreference } from './utils/artworkPreferences';
