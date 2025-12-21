@@ -4,55 +4,33 @@ export interface IdentificationResult {
   name: string;
 }
 
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-
 export const identifyCard = async (
   base64Image: string
 ): Promise<IdentificationResult> => {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("Missing OpenAI API Key");
-  }
-
   const base64Data = base64Image.split(",")[1] || base64Image;
 
-  const response = await fetch(OPENAI_URL, {
+  const prompt = `Analyze this Yu-Gi-Oh! card image carefully.
+Extract:
+1. Passcode (8 digits, bottom left). If not visible, return empty string.
+2. Set code (e.g. LOB-EN001). If not visible, return empty string.
+3. Exact card name.
+
+Return ONLY raw JSON:
+{ "cardCode": "", "collectionCode": "", "name": "" }`;
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
+      "Authorization": `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      temperature: 0,
+      model: "gpt-4o-mini",
       messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert Yu-Gi-Oh! card identifier. Extract information precisely."
-        },
         {
           role: "user",
           content: [
-            {
-              type: "text",
-              text: `
-Analyze this Yu-Gi-Oh! card image carefully.
-
-Extract:
-1. Passcode (8-digit number, bottom left). If missing, return empty string.
-2. Set Code (e.g., LOB-EN001). If missing, return empty string.
-3. Exact card name in English.
-
-Return ONLY raw JSON:
-{
-  "cardCode": "",
-  "collectionCode": "",
-  "name": ""
-}
-`
-            },
+            { type: "text", text: prompt },
             {
               type: "image_url",
               image_url: {
@@ -61,29 +39,26 @@ Return ONLY raw JSON:
             }
           ]
         }
-      ]
+      ],
+      max_tokens: 300
     })
   });
 
   if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`OpenAI error: ${err}`);
+    throw new Error("OpenAI request failed");
   }
 
   const data = await response.json();
   const text = data.choices?.[0]?.message?.content;
 
-  if (!text) {
-    throw new Error("Empty response from OpenAI");
-  }
+  if (!text) throw new Error("No response text from OpenAI");
 
   const cleaned = text.replace(/```json|```/g, "").trim();
-  const parsed = JSON.parse(cleaned);
+  const result = JSON.parse(cleaned);
 
   return {
-    cardCode: parsed.cardCode || "",
-    collectionCode: parsed.collectionCode || "",
-    name: parsed.name || ""
+    cardCode: result.cardCode || "",
+    collectionCode: result.collectionCode || "",
+    name: result.name || ""
   };
 };
-
