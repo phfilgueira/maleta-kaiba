@@ -1,23 +1,31 @@
-import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY
-});
-
 export interface IdentificationResult {
-  cardCode: string;        // Passcode (8 dígitos)
-  collectionCode: string; // Código do set (ex: LOB-EN001)
-  name: string;            // Nome da carta
+  cardCode: string;
+  collectionCode: string;
+  name: string;
 }
+
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
 export const identifyCard = async (
   base64Image: string
 ): Promise<IdentificationResult> => {
-  try {
-    const base64Data = base64Image.split(",")[1] || base64Image;
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
 
-    const response = await client.chat.completions.create({
+  if (!apiKey) {
+    throw new Error("Missing OpenAI API Key");
+  }
+
+  const base64Data = base64Image.split(",")[1] || base64Image;
+
+  const response = await fetch(OPENAI_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
       model: "gpt-4o-mini",
+      temperature: 0,
       messages: [
         {
           role: "system",
@@ -37,7 +45,7 @@ Extract:
 2. Set Code (e.g., LOB-EN001). If missing, return empty string.
 3. Exact card name in English.
 
-Return ONLY raw JSON with:
+Return ONLY raw JSON:
 {
   "cardCode": "",
   "collectionCode": "",
@@ -53,26 +61,28 @@ Return ONLY raw JSON with:
             }
           ]
         }
-      ],
-      temperature: 0
-    });
+      ]
+    })
+  });
 
-    const text = response.choices[0]?.message?.content;
-
-    if (!text) {
-      throw new Error("Empty response from OpenAI");
-    }
-
-    const cleaned = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
-
-    return {
-      cardCode: parsed.cardCode || "",
-      collectionCode: parsed.collectionCode || "",
-      name: parsed.name || ""
-    };
-  } catch (err) {
-    console.error("OpenAI identifyCard error:", err);
-    throw err;
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`OpenAI error: ${err}`);
   }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+
+  if (!text) {
+    throw new Error("Empty response from OpenAI");
+  }
+
+  const cleaned = text.replace(/```json|```/g, "").trim();
+  const parsed = JSON.parse(cleaned);
+
+  return {
+    cardCode: parsed.cardCode || "",
+    collectionCode: parsed.collectionCode || "",
+    name: parsed.name || ""
+  };
 };
