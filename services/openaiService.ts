@@ -24,7 +24,7 @@ export const identifyCard = async (
       Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
       temperature: 0,
       messages: [
         {
@@ -86,3 +86,4 @@ Return ONLY raw JSON:
     name: parsed.name || ""
   };
 };
+
