@@ -13,7 +13,7 @@ import SearchAndFilter from './components/SearchAndFilter';
 import ViewModeControl from './components/ViewModeControl';
 import SettingsModal from './components/SettingsModal';
 import { CameraIcon, BookOpenIcon, CogIcon } from './components/icons';
-//import { identifyCard } from './services/geminiService';
+import { identifyCard } from './services/geminiService';
 import { searchCard, getArtworksForCard } from './services/ygoProDeckService';
 import { RARITIES } from './constants';
 import { saveArtworkPreference, getArtworkPreference } from './utils/artworkPreferences';
